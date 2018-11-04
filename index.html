@@ -5,89 +5,82 @@
         video { display: none }
     </style>
     <body  >
-        <div id="container" ></div>
+    <video id="video" autoplay style="display:none"></video>
+
     <script src="r73/three.js"></script>
     <script src="r73/OrbitControls.js"></script>
     <script src="files.js"></script>
     <script src="utils.js"></script>
     <script>
-
-        var _container, _body;
         var _camera, _scene, _renderer, _controls, _video, _videoTexture;
         var _planes;
-        _body = document.getElementsByTagName( 'body' )[0];
-        _container = document.getElementById( 'container' );
-        _renderer =  new THREE.WebGLRenderer({antialias: true, alpha: true});
-        _container.innerHTML = "";
-        _container.appendChild( _renderer.domElement );
         function init() {
+            _camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+            _camera.position.z = 0.01;
 
-            console.log("body", _container.clientWidth, _container.clientHeight);
-            _container = document.getElementById( 'container' );
-            _camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 20000 );
-            _controls = new THREE.OrbitControls( _camera, _container.domElement );
             _renderer =  new THREE.WebGLRenderer({antialias: true, alpha: true});
-            _renderer.setSize( window.innerWidth, window.innerHeight );
-            document.getElementById( 'container' ).innerHTML = "";
-            _container.appendChild( _renderer.domElement );
-            _camera.position.x = 8; _camera.position.y = 7; _camera.position.z = -48;
+            _renderer.setPixelRatio(window.devicePixelRatio);
+            _renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(_renderer.domElement);
 
+            _controls = new THREE.OrbitControls( _camera, _renderer.domElement );
 
-            let light = new THREE.AmbientLight(0xFFFFFF);
-            _scene = new THREE.Scene()
-            _scene.add(light);
-            _scene.add(_camera);
-            let sphere = new THREE.SphereGeometry(50, 16, 16);
-            // material = new THREE.MeshNormalMaterial();
-            // _scene.add(new THREE.Mesh(sphere, material))
+            _video = document.getElementById('video');
+            var texture = new THREE.VideoTexture(_video);
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            texture.format = THREE.RGBFormat;
+
+            var geometry = new THREE.PlaneBufferGeometry(16, 9);
+            geometry.scale(5,5,5);
+            var material = new THREE.MeshBasicMaterial({ map: texture });
+
+            let sphere = new THREE.SphereGeometry(50, 32, 32);
+            material.side = THREE.DoubleSide;
+            _scene = new THREE.Scene();
+            _scene.add(new THREE.Mesh(sphere, material));
+
+            navigator.mediaDevices.enumerateDevices()
+                .then(function (devices) {
+                devices.forEach(function (device) {
+                    console.log(device.kind + ": |" + device.label +
+                    "| id = " + device.deviceId);
+                });
+                })
+                .catch(function (err) {
+                console.log(err.name + ": " + err.message);
+                });
 
             navigator.mediaDevices.enumerateDevices().then((devices) => {
-                // find the theta uvc blender device
-                console.log(devices)
                 let theta = devices.find(device => device.label.match(/RICOH THETA V/));
-                console.log(theta)
-                return theta ? { optional: [{ sourceId: theta.deviceId }] } : true
+                // let theta = devices.find(device => device.label.match(/FaceTime HD Camera/));
+                // let theta = devices.find(device => device.label.match(/THETA UVC/));
+                console.log("Here 0");
+                return theta ? { optional: [{ sourceId: theta.deviceId }] } : null
             }).then((video) => {
-                // get the camera
-                return navigator.mediaDevices.getUserMedia({ video })
+                return navigator.mediaDevices.getUserMedia({ video });
             }).then((stream) => {
-                // create the video tag
-                _video = document.body.appendChild(document.createElement('video'))
-                _video.src = window.URL.createObjectURL(stream)
-
-                // attach the video to a texture
-                _videoTexture = new THREE.Texture(_video)
-                _videoTexture.minFilter = THREE.NearestFilter
-
-                // create a sphere at the origin textured on the inside by the video
-                material = new THREE.MeshBasicMaterial({ map: _videoTexture })
-                material.side = THREE.BackSide
-                _scene.add(new THREE.Mesh(sphere, material))
-
-                render();
-            }).catch((err) => {
-                console.error(err)
-            })
-
+                    _video.srcObject = stream;
+                    _video.play();
+                }).catch(function (error) {
+                    console.error('Unable to access the camera/webcam.', error);
+                });
         }
+
         function render() {
             requestAnimationFrame( render );
-            _controls.update()
-            // update the video texture
-            if (_video.readyState === _video.HAVE_ENOUGH_DATA)
-                _videoTexture.needsUpdate = true
             _renderer.render( _scene, _camera );
         }
 
         function resize() {
-            console.log("Resizing.......");
+            _camera.aspect = window.innerWidth / window.innerHeight;
+            _camera.updateProjectionMatrix();
+            _renderer.setSize(window.innerWidth, window.innerHeight);
         }
-        function refreshPage(){
-            window.location.reload();
-        } 
         window.onresize = resize;
         window.addEventListener('orientationchange', function (e) { setTimeout(resize, 250); });
         init();
+        render();
         setTimeout(resize, 500);
     </script>
 	</body>

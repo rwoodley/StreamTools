@@ -12,11 +12,12 @@
     <script src="files.js"></script>
     <script src="utils.js"></script>
     <script>
-        var _camera, _scene, _renderer, _controls, _video, _videoTexture;
+        var _camera, _scene, _renderer, _controls, _video, _texture;
         var _planes;
+        var _meshes = [], _scales = [];
         function init() {
-            _camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
-            _camera.position.z = 0.01;
+            _camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            _camera.position.z = 10;
 
             _renderer =  new THREE.WebGLRenderer({antialias: true, alpha: true});
             _renderer.setPixelRatio(window.devicePixelRatio);
@@ -26,31 +27,22 @@
             _controls = new THREE.OrbitControls( _camera, _renderer.domElement );
 
             _video = document.getElementById('video');
-            var texture = new THREE.VideoTexture(_video);
-            texture.minFilter = THREE.LinearFilter;
-            texture.magFilter = THREE.LinearFilter;
-            texture.format = THREE.RGBFormat;
-
-            var geometry = new THREE.PlaneBufferGeometry(16, 9);
-            geometry.scale(5,5,5);
-            var material = new THREE.MeshBasicMaterial({ map: texture });
-
-            let sphere = new THREE.SphereGeometry(50, 32, 32);
+            _texture = new THREE.VideoTexture(_video);
+            _texture.minFilter = THREE.LinearFilter;
+            _texture.magFilter = THREE.LinearFilter;
+            _texture.format = THREE.RGBFormat;
+            var material = new THREE.MeshBasicMaterial({ map: _texture });
             material.side = THREE.DoubleSide;
             _scene = new THREE.Scene();
-            _scene.add(new THREE.Mesh(sphere, material));
+            _scene.add(new THREE.AxisHelper( 15000 ));
+            // let sphere = new THREE.SphereGeometry(50, 32, 32);
+            // _scene.add(new THREE.Mesh(sphere, material));
 
-            navigator.mediaDevices.enumerateDevices()
-                .then(function (devices) {
-                devices.forEach(function (device) {
-                    console.log(device.kind + ": |" + device.label +
-                    "| id = " + device.deviceId);
-                });
-                })
-                .catch(function (err) {
-                console.log(err.name + ": " + err.message);
-                });
+            // _scene.add(new THREE.Mesh(sphere, material));
+            // return sphere;
+            addMesh(material, _scene);
 
+            logMediaDevices();
             navigator.mediaDevices.enumerateDevices().then((devices) => {
                 let theta = devices.find(device => device.label.match(/RICOH THETA V/));
                 // let theta = devices.find(device => device.label.match(/FaceTime HD Camera/));
@@ -67,8 +59,32 @@
                 });
         }
 
+        function addMesh(material, scene) {
+            var scale = 10;
+            for (var i = 0; i < 10; i++) {
+                var s = addBall(material, scene, Math.random()*scale/6.);
+                s.position.set(
+                    (Math.random()-.5)*scale,
+                    (Math.random()-.5)*scale,
+                    (Math.random()-.5)*scale,
+                );
+                _meshes.push(s);
+                _scales[i] = (Math.random()-.5)*scale;
+            }
+        }
+        function addBall(material, scene, scale) {
+            let sphere = new THREE.SphereGeometry(scale, 32, 32);
+            var mesh = new THREE.Mesh(sphere, material)
+            scene.add(mesh);
+            return mesh;
+        }
+
         function render() {
             requestAnimationFrame( render );
+            rotateCameraY(_camera, .01);
+            _camera.lookAt(new THREE.Vector3(0,0,0));
+            for (var i = 0; i < _meshes.length; i++)
+                _meshes[i].rotateY(0.02*_scales[i]);
             _renderer.render( _scene, _camera );
         }
 
@@ -76,12 +92,13 @@
             _camera.aspect = window.innerWidth / window.innerHeight;
             _camera.updateProjectionMatrix();
             _renderer.setSize(window.innerWidth, window.innerHeight);
+
         }
         window.onresize = resize;
         window.addEventListener('orientationchange', function (e) { setTimeout(resize, 250); });
         init();
         render();
-        setTimeout(resize, 500);
+        setTimeout(resize, 500); 
     </script>
 	</body>
 </html>

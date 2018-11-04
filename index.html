@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html style='width: 100%; height: 100%;'>
+    <style>
+        body { margin: 0 }
+        video { display: none }
+    </style>
+    <body  >
+        <div id="container" ></div>
+    <script src="r73/three.js"></script>
+    <script src="r73/OrbitControls.js"></script>
+    <script src="files.js"></script>
+    <script src="utils.js"></script>
+    <script>
+
+        var _container, _body;
+        var _camera, _scene, _renderer, _controls, _video, _videoTexture;
+        var _planes;
+        _body = document.getElementsByTagName( 'body' )[0];
+        _container = document.getElementById( 'container' );
+        _renderer =  new THREE.WebGLRenderer({antialias: true, alpha: true});
+        _container.innerHTML = "";
+        _container.appendChild( _renderer.domElement );
+        function init() {
+
+            console.log("body", _container.clientWidth, _container.clientHeight);
+            _container = document.getElementById( 'container' );
+            _camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 20000 );
+            _controls = new THREE.OrbitControls( _camera, _container.domElement );
+            _renderer =  new THREE.WebGLRenderer({antialias: true, alpha: true});
+            _renderer.setSize( window.innerWidth, window.innerHeight );
+            document.getElementById( 'container' ).innerHTML = "";
+            _container.appendChild( _renderer.domElement );
+            _camera.position.x = 8; _camera.position.y = 7; _camera.position.z = -48;
+
+
+            let light = new THREE.AmbientLight(0xFFFFFF);
+            _scene = new THREE.Scene()
+            _scene.add(light);
+            _scene.add(_camera);
+            let sphere = new THREE.SphereGeometry(50, 16, 16);
+            // material = new THREE.MeshNormalMaterial();
+            // _scene.add(new THREE.Mesh(sphere, material))
+
+            navigator.mediaDevices.enumerateDevices().then((devices) => {
+                // find the theta uvc blender device
+                console.log(devices)
+                let theta = devices.find(device => device.label.match(/RICOH THETA V/));
+                console.log(theta)
+                return theta ? { optional: [{ sourceId: theta.deviceId }] } : true
+            }).then((video) => {
+                // get the camera
+                return navigator.mediaDevices.getUserMedia({ video })
+            }).then((stream) => {
+                // create the video tag
+                _video = document.body.appendChild(document.createElement('video'))
+                _video.src = window.URL.createObjectURL(stream)
+
+                // attach the video to a texture
+                _videoTexture = new THREE.Texture(_video)
+                _videoTexture.minFilter = THREE.NearestFilter
+
+                // create a sphere at the origin textured on the inside by the video
+                material = new THREE.MeshBasicMaterial({ map: _videoTexture })
+                material.side = THREE.BackSide
+                _scene.add(new THREE.Mesh(sphere, material))
+
+                render();
+            }).catch((err) => {
+                console.error(err)
+            })
+
+        }
+        function render() {
+            requestAnimationFrame( render );
+            _controls.update()
+            // update the video texture
+            if (_video.readyState === _video.HAVE_ENOUGH_DATA)
+                _videoTexture.needsUpdate = true
+            _renderer.render( _scene, _camera );
+        }
+
+        function resize() {
+            console.log("Resizing.......");
+        }
+        function refreshPage(){
+            window.location.reload();
+        } 
+        window.onresize = resize;
+        window.addEventListener('orientationchange', function (e) { setTimeout(resize, 250); });
+        init();
+        setTimeout(resize, 500);
+    </script>
+	</body>
+</html>
